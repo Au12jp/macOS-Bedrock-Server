@@ -18,10 +18,14 @@ if [[ $# -lt 1 ]]; then
 fi
 
 SERVER_DIR="$1"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "===== STEP 0: 準備 ====="
 mkdir -p "$SERVER_DIR"
+
+# 前回の残骸削除
 rm -rf /tmp/wine
+rm -rf /tmp/Contents
 rm -f /tmp/wine.pkg
 
 echo "===== STEP 1: Wine ダウンロード ====="
@@ -37,16 +41,21 @@ cd /tmp
 tar -xf /tmp/wine/org.winehq.wine-devel64.pkg/Payload
 
 echo "===== STEP 4: wine コピー ====="
-mv -v ./Contents/Resources/wine "$SERVER_DIR"/wine
+if [ -d "/tmp/Contents/Resources/wine" ]; then
+    mv -v /tmp/Contents/Resources/wine "$SERVER_DIR"/wine
+else
+    echo "ERROR: wine folder not found!"
+    exit 1
+fi
 
 echo "===== STEP 5: Bedrock server files 展開 ====="
-cd "$OLDPWD"
-unzip -o ./files.zip -d "$SERVER_DIR"
+cd "$SCRIPT_DIR"
+unzip -o files.zip -d "$SERVER_DIR"
 
 echo "===== STEP 6: Cleanup ====="
 rm -rf /tmp/wine
-rm -f /tmp/wine.pkg
 rm -rf /tmp/Contents
+rm -f /tmp/wine.pkg
 
 echo "===== STEP 7: Wine prefix 初期化 ====="
 WINEPREFIX="$SERVER_DIR/prefix" "$SERVER_DIR/wine/bin/wineboot"
@@ -56,5 +65,7 @@ rm -f "$SERVER_DIR/prefix/drive_c/windows/system32/winedbg.exe"
 
 echo "===== DONE: $(date) ====="
 echo "Log saved at $LOG_FILE"
+echo ""
 echo "Start server with:"
-echo "cd $SERVER_DIR && ./bedrock_server"
+echo "cd $SERVER_DIR"
+echo "./bedrock_server"
