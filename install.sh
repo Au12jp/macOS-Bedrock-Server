@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "===== STEP 0: 準備 ====="
 mkdir -p "$SERVER_DIR"
 rm -rf /tmp/wine
-rm -rf /tmp/Contents
+rm -rf /tmp/wine_extract
 rm -f /tmp/wine.pkg
 
 echo "===== STEP 1: Wine ダウンロード ====="
@@ -35,26 +35,27 @@ pkgutil --expand /tmp/wine.pkg /tmp/wine
 ls -la /tmp/wine
 
 echo "===== STEP 3: Payload 展開 ====="
-cd /tmp
-tar -xf /tmp/wine/org.winehq.wine-devel64.pkg/Payload
+mkdir -p /tmp/wine_extract
+cd /tmp/wine_extract
 
-# 展開後の構造を確認（デバッグ用）
-echo "展開後の /tmp 確認:"
-find /tmp -maxdepth 4 -type d -name "wine" 2>/dev/null || echo "wine ディレクトリが見つかりません"
+# macOS の pkg Payload は pax で展開する（tar では展開できない）
+pax -rz -f /tmp/wine/org.winehq.wine-devel64.pkg/Payload
+
+echo "展開後の構造確認:"
+find /tmp/wine_extract -type d -name "wine" 2>/dev/null || echo "wine ディレクトリ未発見"
 
 echo "===== STEP 4: wine コピー ====="
-# wine フォルダを自動検索（パス固定しない）
-WINE_PATH=$(find /tmp -type d -name "wine" | grep -v "^/tmp/wine$" | head -n 1)
+WINE_PATH=$(find /tmp/wine_extract -type d -name "wine" | head -n 1)
 
 if [ -z "$WINE_PATH" ]; then
     echo "ERROR: wine フォルダが見つかりませんでした"
-    echo "展開されたファイル一覧:"
-    find /tmp/Contents -type d 2>/dev/null || echo "/tmp/Contents が存在しません"
+    echo "展開されたディレクトリ一覧:"
+    find /tmp/wine_extract -maxdepth 5 -type d 2>/dev/null
     exit 1
 fi
 
 echo "Found wine at: $WINE_PATH"
-mv -v "$WINE_PATH" "$SERVER_DIR/wine"
+cp -R "$WINE_PATH" "$SERVER_DIR/wine"
 
 echo "===== STEP 5: Bedrock server files 展開 ====="
 cd "$SCRIPT_DIR"
@@ -62,12 +63,13 @@ unzip -o files.zip -d "$SERVER_DIR"
 
 echo "===== STEP 6: Cleanup ====="
 rm -rf /tmp/wine
-rm -rf /tmp/Contents
+rm -rf /tmp/wine_extract
 rm -f /tmp/wine.pkg
 
 echo "===== STEP 7: Wine prefix 初期化 ====="
 if [ ! -f "$SERVER_DIR/wine/bin/wineboot" ]; then
-    echo "ERROR: wineboot が見つかりません: $SERVER_DIR/wine/bin/wineboot"
+    echo "ERROR: wineboot が見つかりません"
+    ls -la "$SERVER_DIR/wine/bin/" 2>/dev/null || echo "wine/bin が存在しません"
     exit 1
 fi
 WINEPREFIX="$SERVER_DIR/prefix" "$SERVER_DIR/wine/bin/wineboot"
