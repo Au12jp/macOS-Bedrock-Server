@@ -17,11 +17,13 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
-SERVER_DIR="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "===== STEP 0: 準備 ====="
-mkdir -p "$SERVER_DIR"
+# 相対パスを絶対パスに変換（後で cd しても壊れないようにする）
+mkdir -p "$1"
+SERVER_DIR="$(cd "$1" && pwd)"
+echo "Absolute SERVER_DIR: $SERVER_DIR"
 rm -rf /tmp/wine
 rm -rf /tmp/wine_extract
 rm -f /tmp/wine.pkg
